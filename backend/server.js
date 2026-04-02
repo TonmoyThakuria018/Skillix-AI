@@ -124,6 +124,34 @@ app.post('/api/auth/reset-password', async (req, res) => {
 const upload = multer({ storage: multer.memoryStorage() });
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const roleKeywordMap = {
+    'Full Stack Developer': ['full stack', 'javascript', 'html', 'css', 'react', 'node', 'database', 'api'],
+    'Frontend Engineer': ['frontend', 'react', 'vue', 'angular', 'css', 'html', 'javascript', 'ui'],
+    'Backend Developer': ['backend', 'node', 'express', 'api', 'database', 'sql', 'java', 'python'],
+    'Data Scientist': ['data', 'python', 'machine learning', 'statistics', 'pandas', 'numpy', 'analysis'],
+    'AI Prompt Engineer': ['prompt', 'ai', 'gpt', 'llm', 'natural language', 'generation'],
+    'DevOps Engineer': ['devops', 'docker', 'kubernetes', 'ci/cd', 'aws', 'azure', 'infrastructure'],
+    'Product Manager': ['product', 'roadmap', 'user research', 'stakeholder', 'strategy', 'metrics'],
+    'UI/UX Designer': ['ui', 'ux', 'design', 'wireframe', 'prototyping', 'user research', 'figma'],
+    'Cloud Architect': ['cloud', 'aws', 'azure', 'gcp', 'architecture', 'infrastructure', 'scalability'],
+    'Cyber Security Analyst': ['security', 'cyber', 'risk', 'penetration testing', 'compliance', 'firewall']
+};
+
+const computeATSScore = (resumeText, role, verifiedSkills = [], missingSkills = []) => {
+    const normalized = resumeText.toLowerCase();
+    const roleKeywords = roleKeywordMap[role] || role.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    const matchedRoleKeywords = roleKeywords.reduce((count, keyword) => count + (normalized.includes(keyword) ? 1 : 0), 0);
+    const roleMatchRatio = roleKeywords.length ? matchedRoleKeywords / roleKeywords.length : 0;
+
+    const verifiedCount = Array.isArray(verifiedSkills) ? verifiedSkills.length : 0;
+    const missingCount = Array.isArray(missingSkills) ? missingSkills.length : 0;
+    const skillMatchRatio = verifiedCount + missingCount > 0 ? verifiedCount / (verifiedCount + missingCount) : 0;
+
+    const lengthFactor = Math.min(1, resumeText.length / 5000);
+    const rawScore = Math.round((roleMatchRatio * 0.35 + skillMatchRatio * 0.55 + lengthFactor * 0.10) * 100);
+    return Math.max(10, Math.min(100, rawScore));
+};
+
 app.post('/api/analyze', upload.single('resume'), async (req, res) => {
     try {
         const { role, timeline } = req.body;
@@ -144,6 +172,11 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
         });
         const text = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
         const analysisData = JSON.parse(text);
+
+        const verifiedSkills = Array.isArray(analysisData.verifiedSkills) ? analysisData.verifiedSkills : [];
+        const missingSkills = Array.isArray(analysisData.missingSkills) ? analysisData.missingSkills : [];
+        const atsScore = computeATSScore(resumeText, role, verifiedSkills, missingSkills);
+        analysisData.atsScore = atsScore;
 
         // PERSISTENCE: Save to DB if token is present
         const token = req.header('x-auth-token');

@@ -124,12 +124,14 @@ export default function App() {
             <Navbar 
              currentView={currentView} 
              setCurrentView={setCurrentView} 
+             setSelectedRoadmap={setSelectedRoadmap}
              logout={() => setLogoutDialogOpen(true)} 
              user={user} 
           />
           <Container maxWidth="lg" sx={{ py: 6, flexGrow: 1 }}>
             {currentView === 'dashboard' && <DashboardScreen token={token} setCurrentView={setCurrentView} setSelectedRoadmap={setSelectedRoadmap} user={user} />}
-            {currentView === 'generator' && <GeneratorScreen token={token} setSelectedRoadmap={setSelectedRoadmap} selectedRoadmap={selectedRoadmap} />}
+            {currentView === 'roadmap' && <GeneratorScreen currentView={currentView} token={token} setCurrentView={setCurrentView} setSelectedRoadmap={setSelectedRoadmap} selectedRoadmap={selectedRoadmap} />}
+            {currentView === 'generator' && <GeneratorScreen currentView={currentView} token={token} setCurrentView={setCurrentView} setSelectedRoadmap={setSelectedRoadmap} selectedRoadmap={selectedRoadmap} />}
           </Container>
 
           <Dialog open={logoutDialogOpen} onClose={() => setLogoutDialogOpen(false)}>
@@ -151,7 +153,7 @@ export default function App() {
 // ==========================================
 // NAVBAR COMPONENT
 // ==========================================
-function Navbar({ currentView, setCurrentView, logout, user }) {
+function Navbar({ currentView, setCurrentView, setSelectedRoadmap, logout, user }) {
   return (
     <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
       <Container maxWidth="lg">
@@ -172,7 +174,12 @@ function Navbar({ currentView, setCurrentView, logout, user }) {
                 variant={currentView === 'dashboard' ? 'contained' : 'text'}
               > Dashboard </Button>
               <Button 
-                onClick={() => setCurrentView('generator')} 
+                onClick={() => setCurrentView('roadmap')} 
+                startIcon={<Map size={18}/>}
+                variant={currentView === 'roadmap' ? 'contained' : 'text'}
+              > Roadmap </Button>
+              <Button 
+                onClick={() => { setSelectedRoadmap(null); setCurrentView('generator'); }} 
                 startIcon={<UploadCloud size={18}/>}
                 variant={currentView === 'generator' ? 'contained' : 'text'}
               > Career Analyst </Button>
@@ -204,6 +211,8 @@ function Navbar({ currentView, setCurrentView, logout, user }) {
 function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
     const [roadmaps, setRoadmaps] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showAllAnalyses, setShowAllAnalyses] = useState(false);
+    const [selectedRoadmapIndex, setSelectedRoadmapIndex] = useState(0);
 
     useEffect(() => {
         axios.get(`${API_URL}/roadmaps/me`, { headers: { 'x-auth-token': token } })
@@ -219,7 +228,7 @@ function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
       </Box>
     );
 
-    const activeRM = roadmaps[0];
+    const activeRM = roadmaps[selectedRoadmapIndex] || roadmaps[0];
 
     if (!activeRM) return (
         <Paper sx={{ textAlign: 'center', py: 10, borderRadius: 1, border: '2px dashed', borderColor: 'divider' }}>
@@ -260,16 +269,21 @@ function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
                   <Typography variant="h2" sx={{ mb: 0.5 }}>Welcome, {user?.name}</Typography>
                   <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.9rem' }}>Real Time AI analyst</Typography>
                 </Box>
-                <Button variant="contained" onClick={() => setCurrentView('generator')} sx={{ height: 44, px: 4 }}>New Analysis</Button>
+                <Button variant="contained" onClick={() => { setSelectedRoadmap(null); setCurrentView('generator'); }} sx={{ height: 44, px: 4 }}>New Analysis</Button>
             </Box>
 
             <Grid container spacing={4}>
                 {/* Active Objective (Top Left) */}
-                <Grid item xs={12} md={7}>
-                    <Box sx={{ ...cardStyle, bgcolor: '#0f172a', border: '1px solid', borderColor: 'primary.main' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Grid item xs={12} md={4}>
+                    <Box sx={{ ...cardStyle, bgcolor: '#0f172a', border: '1px solid', borderColor: 'primary.main', height: 'auto', minHeight: 260, maxHeight: 320, px: 3, py: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
                            <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>CURRENT OBJECTIVE</Typography>
-                           <Chip label="ACTIVE" size="small" color="primary" sx={{ borderRadius: 0, fontWeight: 900 }} />
+                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                               <Button size="small" variant="outlined" onClick={() => setShowAllAnalyses(!showAllAnalyses)} sx={{ color: '#7dd3fc', borderColor: '#7dd3fc' }}>
+                                   All Analysis ({roadmaps.length})
+                               </Button>
+                               <Chip label="ACTIVE" size="small" color="primary" sx={{ borderRadius: 0, fontWeight: 900 }} />
+                           </Box>
                         </Box>
                         <Typography variant="h2" sx={{ fontSize: '1.5rem', mb: 1, textTransform: 'uppercase' }}>{activeRM.targetRole}</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 700 }}>TERM: {activeRM.timeline}</Typography>
@@ -282,66 +296,62 @@ function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
                     </Box>
                 </Grid>
 
-                {/* Performance Metrics (Top Right) */}
-                <Grid item xs={12} md={5}>
-                    <Grid container spacing={2} sx={{ height: '100%' }}>
-                        <Grid item xs={12}>
-                            <Box sx={cardStyle}>
-                               <Typography variant="overline" sx={{ fontWeight: 900, color: 'text.secondary', display: 'block', mb: 1 }}>ATS MATCH EFFICIENCY</Typography>
-                               <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2 }}>
-                                  <Typography variant="h1" sx={{ fontWeight: 900, color: 'primary.main', lineHeight: 1 }}>{activeRM.analysisData?.atsScore || 0}%</Typography>
-                                  <Box sx={{ pb: 1 }}>
-                                     <TrendingUp size={24} color="#10b981" />
-                                  </Box>
-                               </Box>
-                               <Typography variant="caption" sx={{ fontWeight: 900, color: '#10b981', mt: 2, display: 'block' }}>SYSTEM CALIBRATED: OPTIMAL</Typography>
-                            </Box>
-                        </Grid>
-                    </Grid>
+                {/* Current ATS Score (Top Center) */}
+                <Grid item xs={12} md={4}>
+                    <Box sx={{ ...cardStyle, bgcolor: '#0f172a', border: '1px solid', borderColor: 'primary.main', minHeight: 260, maxHeight: 320, px: 3, py: 3 }}>
+                        <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 900, display: 'block', mb: 2 }}>CURRENT ATS SCORE</Typography>
+                        <Typography variant="h2" sx={{ fontWeight: 900, mb: 1 }}>{activeRM.analysisData?.atsScore ?? 0}%</Typography>
+                        <Typography variant="body2" color="text.secondary">This score reflects the selected roadmap upload.</Typography>
+                    </Box>
                 </Grid>
 
-                {/* Top Leading Skills (Wide Horizontal Card with Vertical Bars) */}
-                <Grid item xs={12}>
+                {/* My Roadmaps (Top Right) */}
+                <Grid item xs={12} md={4}>
                     <Box sx={cardStyle}>
-                        <Typography variant="h3" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1.5, textTransform: 'uppercase' }}>
-                           <BarChart size={24} /> Top Leading Skills
+                        <Typography variant="h3" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, textTransform: 'uppercase' }}>
+                           <BarChart size={24} /> My Roadmaps
                         </Typography>
-                        <Box sx={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'flex-end', 
-                            height: 240, 
-                            gap: { xs: 1, md: 3 },
-                            px: 2,
-                            overflowX: 'auto',
-                            pb: 4
-                        }}>
-                            {TOP_SKILLS.map((skill, i) => (
-                                <Box key={i} sx={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    alignItems: 'center', 
-                                    flexGrow: 1,
-                                    height: '100%',
-                                    minWidth: 40
-                                }}>
-                                    <Typography variant="caption" sx={{ fontWeight: 900, mb: 1, transform: 'rotate(-45deg)', transformOrigin: 'center bottom' }}>{skill.name}</Typography>
-                                    <Box sx={{ 
-                                        width: '100%', 
-                                        maxWidth: 40,
-                                        height: `${skill.val}%`, 
-                                        bgcolor: i < 3 ? 'primary.main' : 'divider',
-                                        transition: 'all 1s ease-out',
-                                        '&:hover': { bgcolor: 'primary.light' }
-                                    }} />
-                                    <Typography variant="caption" sx={{ fontWeight: 900, mt: 1, opacity: 0.5 }}>{skill.val}</Typography>
-                                </Box>
-                            ))}
+                        <Typography variant="caption" sx={{ display: 'block', mb: 3, color: 'text.secondary' }}>Switch between saved roadmaps</Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, overflowX: 'auto', pb: 1 }}>
+                            {roadmaps.length === 0 ? (
+                                <Typography variant="body2" color="text.secondary">No roadmaps yet. Generate a new analysis to save one.</Typography>
+                            ) : roadmaps.map((item, idx) => {
+                                const itemSteps = item.analysisData?.roadmap || [];
+                                const totalTasks = itemSteps.reduce((acc, step) => acc + (step.tasks?.length || 0), 0);
+                                const doneTasks = Object.values(item.checkedTasks || {}).filter(Boolean).length;
+                                const itemProgress = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
+                                return (
+                                    <Box
+                                        key={idx}
+                                        onClick={() => { setSelectedRoadmapIndex(idx); setShowAllAnalyses(false); }}
+                                        sx={{
+                                            p: 2,
+                                            minWidth: 200,
+                                            flexShrink: 0,
+                                            border: '1px solid',
+                                            borderColor: selectedRoadmapIndex === idx ? 'primary.main' : 'divider',
+                                            borderRadius: 1,
+                                            cursor: 'pointer',
+                                            bgcolor: selectedRoadmapIndex === idx ? '#0f172a' : 'transparent',
+                                            '&:hover': { borderColor: 'primary.main' }
+                                        }}
+                                    >
+                                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#f8fafc' }}>{item.targetRole || 'Untitled Role'}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{item.timeline || 'No timeline'}</Typography>
+                                        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ flexGrow: 1, height: 6, bgcolor: '#334155', borderRadius: 1, overflow: 'hidden' }}>
+                                                <Box sx={{ width: `${itemProgress}%`, height: '100%', bgcolor: 'primary.main' }} />
+                                            </Box>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{itemProgress}%</Typography>
+                                        </Box>
+                                    </Box>
+                                );
+                            })}
                         </Box>
                     </Box>
                 </Grid>
 
-                {/* Action Phases (Timeline remains at bottom) */}
+                {/* Action Phases (Higher on page) */}
                 <Grid item xs={12}>
                     <Box sx={cardStyle}>
                         <Typography variant="h3" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
@@ -351,7 +361,7 @@ function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
                             {steps.map((step, i) => (
                                 <Box 
                                     key={i} 
-                                    onClick={() => { setSelectedRoadmap(activeRM); setCurrentView('generator'); }}
+                                    onClick={() => { setSelectedRoadmap(activeRM); setCurrentView('roadmap'); }}
                                     sx={{ 
                                         minWidth: 200, p: 2.5, border: '1px solid', borderColor: 'divider', 
                                         bgcolor: 'background.default', cursor: 'pointer',
@@ -375,12 +385,13 @@ function DashboardScreen({ token, setCurrentView, setSelectedRoadmap, user }) {
 // ==========================================
 // GENERATOR SCREEN
 // ==========================================
-function GeneratorScreen({ token, setSelectedRoadmap, selectedRoadmap }) {
+function GeneratorScreen({ currentView, token, setCurrentView, setSelectedRoadmap, selectedRoadmap }) {
     const [file, setFile] = useState(null);
     const [role, setRole] = useState('');
     const [customRole, setCustomRole] = useState('');
     const [timeline, setTimeline] = useState('4 Weeks');
     const [loading, setLoading] = useState(false);
+    const [roadmapLoading, setRoadmapLoading] = useState(false);
     const [analysis, setAnalysis] = useState(selectedRoadmap ? selectedRoadmap.analysisData : null);
     const [checkedTasks, setCheckedTasks] = useState(selectedRoadmap ? selectedRoadmap.checkedTasks || {} : {});
     const roadmapRef = useRef();
@@ -413,6 +424,39 @@ function GeneratorScreen({ token, setSelectedRoadmap, selectedRoadmap }) {
         }
     };
 
+    useEffect(() => {
+        if (selectedRoadmap) {
+            setAnalysis(selectedRoadmap.analysisData);
+            setCheckedTasks(selectedRoadmap.checkedTasks || {});
+        } else {
+            setAnalysis(null);
+            setCheckedTasks({});
+        }
+    }, [selectedRoadmap]);
+
+    useEffect(() => {
+        if (currentView !== 'roadmap' || selectedRoadmap) return;
+
+        const loadSavedRoadmap = async () => {
+            setRoadmapLoading(true);
+            try {
+                const res = await axios.get(`${API_URL}/roadmaps/me`, { headers: { 'x-auth-token': token } });
+                const saved = Array.isArray(res.data) ? res.data : [];
+                if (saved.length > 0) {
+                    setSelectedRoadmap(saved[0]);
+                } else {
+                    toast.error('No saved roadmap found.');
+                }
+            } catch (err) {
+                toast.error('Unable to load saved roadmap.');
+            } finally {
+                setRoadmapLoading(false);
+            }
+        };
+
+        loadSavedRoadmap();
+    }, [currentView, selectedRoadmap, token, setSelectedRoadmap]);
+
     const toggleTask = (pIdx, tIdx) => {
         const key = `${pIdx}-${tIdx}`;
         const newChecked = { ...checkedTasks, [key]: !checkedTasks[key] };
@@ -438,7 +482,7 @@ function GeneratorScreen({ token, setSelectedRoadmap, selectedRoadmap }) {
     if (analysis) return (
         <Box>
             <Box sx={{ mb: 4, display: 'flex', gap: 2 }}>
-                <Button onClick={() => setAnalysis(null)} startIcon={<ArrowLeft size={18}/>}>Back to Analyst</Button>
+                <Button onClick={() => { setAnalysis(null); setSelectedRoadmap(null); setCurrentView('dashboard'); }} startIcon={<ArrowLeft size={18}/>}>Back to Dashboard</Button>
                 <Button variant="contained" onClick={handleExport} startIcon={<Download size={18}/>}>Export to PDF</Button>
             </Box>
             
@@ -453,7 +497,7 @@ function GeneratorScreen({ token, setSelectedRoadmap, selectedRoadmap }) {
                             {analysis.verifiedSkills?.length ? (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                     {analysis.verifiedSkills.map((skill, idx) => (
-                                        <Chip key={idx} label={skill} size="small" sx={{ bgcolor: '#111827', color: '#fff', border: '1px solid', borderColor: 'divider' }} />
+                                        <Chip key={idx} label={skill} size="small" color="success" />
                                     ))}
                                 </Box>
                             ) : (
@@ -467,7 +511,7 @@ function GeneratorScreen({ token, setSelectedRoadmap, selectedRoadmap }) {
                             {analysis.missingSkills?.length ? (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                     {analysis.missingSkills.map((skill, idx) => (
-                                        <Chip key={idx} label={skill} size="small" sx={{ bgcolor: '#111827', color: '#fff', border: '1px solid', borderColor: 'divider' }} />
+                                        <Chip key={idx} label={skill} size="small" color="error" />
                                     ))}
                                 </Box>
                             ) : (
@@ -604,6 +648,7 @@ function AuthScreen({ setToken, setCurrentView }) {
     const [resetToken, setResetToken] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -659,7 +704,18 @@ function AuthScreen({ setToken, setCurrentView }) {
                         {authMode === 'reset' && (
                             <>
                                 <TextField label="Code Token" fullWidth variant="filled" value={resetToken} onChange={e=>setResetToken(e.target.value)} required />
-                                <TextField label="New Password" type="password" variant="filled" fullWidth value={newPassword} onChange={e=>setNewPassword(e.target.value)} required />
+                                <TextField 
+                                    label="New Password" 
+                                    type={showNewPassword ? 'text' : 'password'} 
+                                    variant="filled" 
+                                    fullWidth 
+                                    value={newPassword} 
+                                    onChange={e=>setNewPassword(e.target.value)} 
+                                    required 
+                                    InputProps={{
+                                        endAdornment: <IconButton onClick={()=>setShowNewPassword(!showNewPassword)}>{showNewPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</IconButton>
+                                    }}
+                                />
                             </>
                         )}
 
