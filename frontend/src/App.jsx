@@ -702,7 +702,8 @@ function AuthScreen({ setToken, setCurrentView }) {
             }
         } catch (err) {
             const errorMsg = err.response?.data?.error || "Auth Sync Failed.";
-            toast.error(errorMsg);
+            const detailMsg = err.response?.data?.detail;
+            toast.error(detailMsg ? `${errorMsg} (${detailMsg})` : errorMsg);
             if (errorMsg.toLowerCase().includes("not verified")) {
                 setAuthMode('verify');
             }

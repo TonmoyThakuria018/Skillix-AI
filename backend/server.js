@@ -7,13 +7,13 @@ import { GoogleGenAI } from '@google/genai';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-
 import { body, param, validationResult } from 'express-validator';
 import morgan from 'morgan';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -143,16 +143,14 @@ const requireAuth = (req, res, next) => {
     }
 };
 
-// ==========================================
-// 2. AUTHENTICATION (Register & Login)
-// ==========================================
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Verify Resend configuration at startup (basic check)
+if (!process.env.RESEND_API_KEY) {
+    console.warn("⚠️  WARNING: RESEND_API_KEY is missing. Emails will not send.");
+} else {
+    console.log("📨 Resend Email Service initialized");
+}
 
 app.post('/api/auth/register', registerLimiter, 
     body('name').trim().notEmpty().withMessage('Name is required').escape(),
@@ -179,12 +177,14 @@ app.post('/api/auth/register', registerLimiter,
         });
         await newUser.save();
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Skillix Account Verification Code',
-            text: `Your Skillix Account Verification Code is: ${verificationToken}`
-        });
+        if (process.env.RESEND_API_KEY) {
+            await resend.emails.send({
+                from: 'Skillix AI <onboarding@resend.dev>',
+                to: email,
+                subject: 'Skillix Account Verification Code',
+                html: `<strong>Your Skillix Account Verification Code is:</strong> <p style="font-size: 24px; font-weight: bold;">${verificationToken}</p>`
+            });
+        }
 
         res.json({ message: "Registration successful. Please check your email for the verification token." });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -230,12 +230,14 @@ app.post('/api/auth/resend-verification', authLimiter,
         user.verificationToken = verificationTokenHash;
         await user.save();
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Skillix Account Verification Code',
-            text: `Your Skillix Account Verification Code is: ${verificationToken}`
-        });
+        if (process.env.RESEND_API_KEY) {
+            await resend.emails.send({
+                from: 'Skillix AI <onboarding@resend.dev>',
+                to: email,
+                subject: 'Skillix Account Verification Code',
+                html: `<strong>Your Skillix Account Verification Code is:</strong> <p style="font-size: 24px; font-weight: bold;">${verificationToken}</p>`
+            });
+        }
 
         res.json({ message: "Verification code resent. Please check your email." });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -271,7 +273,10 @@ app.post('/api/auth/forgot-password', authLimiter,
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ error: "Not found." });
+        
+        // Use a generic message even if user not found for security, 
+        // but here we keep the 404 for debugging as per original logic if needed.
+        if (!user) return res.status(404).json({ error: "User not found with this email." });
         
         const resetToken = crypto.randomInt(100000, 1000000).toString();
         const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
@@ -280,16 +285,28 @@ app.post('/api/auth/forgot-password', authLimiter,
         user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 mins
         await user.save();
         
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Skillix Password Recovery Code',
-            text: `Your password reset code is: ${resetToken}\nUse this 6-digit code to reset your password. It expires in 15 minutes.`
-        });
-        res.json({ message: "Reset token sent to email." });
+        if (process.env.RESEND_API_KEY) {
+            await resend.emails.send({
+                from: 'Skillix AI <onboarding@resend.dev>',
+                to: email,
+                subject: 'Skillix Password Recovery Code',
+                html: `
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2 style="color: #0ea5e9;">Skillix AI - Password Reset</h2>
+                        <p>You requested a password reset. Use the following 6-digit code to proceed:</p>
+                        <div style="font-size: 24px; font-weight: bold; background: #f1f5f9; padding: 10px; text-align: center; border-radius: 5px;">
+                            ${resetToken}
+                        </div>
+                        <p>This code expires in 15 minutes.</p>
+                        <p style="font-size: 12px; color: #64748b;">If you did not request this, please ignore this email.</p>
+                    </div>
+                `
+            });
+        }
+        res.json({ message: "Recovery code sent to your email!" });
     } catch (err) { 
-        console.error("Email Error:", err);
-        res.status(500).json({ error: "Email error." }); 
+        console.error("Forgot Password critical failure:", err);
+        res.status(500).json({ error: "Failed to send reset email. Contact support.", detail: err.message }); 
     }
 });
 
@@ -460,12 +477,19 @@ app.patch('/api/roadmaps/:id/tasks', requireAuth,
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Port ${PORT}`));
 
-import fs from 'fs';
 app.use((err, req, res, next) => {
-    fs.writeFileSync('express_error.txt', String(err.stack));
-    // Do not res.send if headers are already sent
+    console.error("Global Error Handler:", err);
+    try {
+        fs.appendFileSync('express_error.txt', `[${new Date().toISOString()}] ${err.stack}\n`);
+    } catch (fsErr) {
+        // Ignore file system errors in read-only environments
+    }
+    
     if (!res.headersSent) {
-        res.status(500).json({error: "Server encountered an error", msg: err.message});
+        res.status(500).json({
+            error: "Server encountered an error", 
+            msg: process.env.NODE_ENV === 'production' ? "Internal server error" : err.message
+        });
     } else {
         next(err);
     }
