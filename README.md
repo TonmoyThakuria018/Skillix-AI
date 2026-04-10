@@ -6,7 +6,7 @@ Skillix AI is a full-stack web application designed to help students and self-le
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 - **Resume-to-Roadmap Scan:** Analyzes uploaded resumes to identify skill gaps and generate custom career-ready learning paths.
 - **AI Roadmap Generation:** Leverages Google's Gemini AI to create detailed, hierarchical learning paths for any topic.
@@ -17,7 +17,7 @@ Skillix AI is a full-stack web application designed to help students and self-le
 
 ---
 
-## 🛠️ The Tech Stack
+##  The Tech Stack
 
 - **Frontend:** React.js (Vite), Material UI, Framer Motion
 - **Backend:** Node.js, Express.js
@@ -27,35 +27,10 @@ Skillix AI is a full-stack web application designed to help students and self-le
 
 ---
 
-## 👨‍💻 Developed By
+##  Developed By
 
 This project was built as a collaborative effort to solve a real learning problem.
 
-- **Krinjal Kashyap** ([@Kkashyap777](https://github.com/Kkashyap777))
 - **Tonmoy Thakuria** ([@TonmoyThakuria018](https://github.com/TonmoyThakuria018))
+- **Krinjal Kashyap** ([@Kkashyap777](https://github.com/Kkashyap777))
 
----
-
-## ⚙️ Quick Local Setup
-
-1. **Clone the repo:**
-   ```bash
-   git clone https://github.com/Kkashyap777/Skillix-AI.git
-   ```
-
-2. **Backend Config:**
-   Create a `.env` in the `backend/` folder:
-   ```env
-   PORT=5000
-   MONGO_URI=your_mongodb_uri
-   GEMINI_API_KEY=your_key
-   JWT_SECRET=your_secret
-   ```
-
-3. **Install & Run:**
-   - Backend: `cd backend && npm install && npm start`
-   - Frontend: `cd frontend && npm install && npm run dev`
-
----
-
-*Made with ❤️ for the student community.*
