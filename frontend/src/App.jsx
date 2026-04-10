@@ -671,6 +671,21 @@ function AuthScreen({ setToken, setCurrentView }) {
         }
     };
 
+    const handleGuest = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.post(`${API_URL}/auth/guest-login`);
+            localStorage.setItem('token', res.data.token);
+            setToken(res.data.token);
+            setCurrentView('dashboard');
+            toast.success("Welcome Guest!");
+        } catch (err) {
+            toast.error("Guest access is currently unavailable.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -770,6 +785,12 @@ function AuthScreen({ setToken, setCurrentView }) {
                         {(authMode === 'verify') && (
                             <Button variant="outlined" onClick={handleResend} fullWidth disabled={loading}>
                                 Resend Verification Code
+                            </Button>
+                        )}
+
+                        {(authMode === 'login' || authMode === 'signup') && (
+                            <Button variant="outlined" color="secondary" onClick={handleGuest} fullWidth sx={{ height: 45, fontWeight: 700 }}>
+                                CONTINUE AS GUEST
                             </Button>
                         )}
 

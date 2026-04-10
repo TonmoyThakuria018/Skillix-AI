@@ -263,6 +263,26 @@ app.post('/api/auth/login', loginLimiter,
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/auth/guest-login', async (req, res) => {
+    try {
+        const guestEmail = "guest@skillix.ai";
+        let user = await User.findOne({ email: guestEmail });
+        
+        if (!user) {
+            user = new User({
+                name: "Guest User",
+                email: guestEmail,
+                password: "guest_secure_password_123!", 
+                isVerified: true
+            });
+            await user.save();
+        }
+
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '2h' });
+        res.json({ token, user: { name: user.name, email: user.email } });
+    } catch (err) { res.status(500).json({ error: "Guest login failed." }); }
+});
+
 // ==========================================
 // 3. SECURE FORGOT PASSWORD (Email Convo)
 // ==========================================
