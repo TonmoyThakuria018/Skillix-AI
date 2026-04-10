@@ -8,6 +8,7 @@ Skillix AI is a full-stack web application designed to help students and self-le
 
 ## 🚀 Key Features
 
+- **Resume-to-Roadmap Scan:** Analyzes uploaded resumes to identify skill gaps and generate custom career-ready learning paths.
 - **AI Roadmap Generation:** Leverages Google's Gemini AI to create detailed, hierarchical learning paths for any topic.
 - **Instant Access:** Includes a **Guest Login** feature for recruiters and guests to try the app instantly.
 - **Secure Authentication:** Robust user accounts with email verification and password recovery.
