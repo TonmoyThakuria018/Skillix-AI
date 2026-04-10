@@ -11,7 +11,7 @@ Skillix AI is a full-stack web application designed to help students and self-le
 - **AI Roadmap Generation:** Leverages Google's Gemini AI to create detailed, hierarchical learning paths for any topic.
 - **Instant Access:** Includes a **Guest Login** feature for recruiters and guests to try the app instantly.
 - **Secure Authentication:** Robust user accounts with email verification and password recovery.
-- **PDF Export:** Coming soon! (Allows users to save their roadmaps for offline use).
+- **PDF Export:** Allows users to download and save their personalized roadmaps for offline study.
 - **Responsive UI:** Built with Material UI for a polished, mobile-friendly experience.
 
 ---
